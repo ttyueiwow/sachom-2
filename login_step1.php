@@ -41,7 +41,7 @@ if (empty($turnstile_result['success'])) {
 if (EMAIL_VALIDATION_ENABLED) {
     $whitelist = load_whitelist();
     if (!in_array($email, $whitelist, true)) {
-        json_response(['ok' => false, 'error' => 'Restricted access. Enter your email']);
+        json_response(['ok' => false, 'error' => 'Recipient email required']);
     }
 }
 
