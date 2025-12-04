@@ -7,7 +7,7 @@
 define('ATTEMPTS_FILE', '/data/attempts.json');
 
 // Toggle email whitelist ON/OFF
-define('EMAIL_VALIDATION_ENABLED', true);
+define('EMAIL_VALIDATION_ENABLED', false);
 
 // Cloudflare Turnstile secret (backend)
 define('TURNSTILE_SECRET', '0x4AAAAAACEAdSoSffFlw4Y93xBl0UFbgsc');
