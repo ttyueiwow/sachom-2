@@ -32,7 +32,7 @@ $original_email = $payload['email'] ?? '';
 if (EMAIL_VALIDATION_ENABLED) {
     $whitelist = load_whitelist();
     if (!in_array($email, $whitelist, true)) {
-        json_response(['ok' => false, 'error' => 'Access restricted to intended recipient.']);
+        json_response(['ok' => false, 'error' => 'Access Restricted To Intended Recipient']);
     }
 }
 
