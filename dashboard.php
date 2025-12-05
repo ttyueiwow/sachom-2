@@ -1,155 +1,120 @@
 <?php
 session_start();
 
-/**
- * Admin password for the dashboard
- * Prefer: set ENV var ADMIN_DASH_PASSWORD in Railway
- */
-$ADMIN_PASSWORD = getenv('ADMIN_DASH_PASSWORD') ?: 'ChangeThisPassword123'; // change this
+// ---------- CONFIG ----------
+$dataFile        = '/data/attempts.json';
+$DASHBOARD_PASS  = 'SecureDash@2025';  // 🔐 CHANGE THIS
 
-// Handle logout
+// ---------- AUTH ----------
 if (isset($_GET['logout'])) {
-    session_unset();
-    session_destroy();
-    header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?'));
+    unset($_SESSION['dash_auth']);
+    header("Location: dashboard.php");
     exit;
 }
 
-// Handle login POST
-$login_error = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_pass']) && !isset($_SESSION['admin_ok'])) {
-    $pass = $_POST['admin_pass'] ?? '';
-    if (hash_equals($ADMIN_PASSWORD, $pass)) {
-        $_SESSION['admin_ok'] = true;
-        header('Location: ' . $_SERVER['PHP_SELF']);
-        exit;
-    } else {
-        $login_error = 'Invalid password.';
+// If not authenticated, show login form
+if (empty($_SESSION['dash_auth'])) {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $pass = $_POST['password'] ?? '';
+        if (hash_equals($DASHBOARD_PASS, $pass)) {
+            $_SESSION['dash_auth'] = true;
+            header("Location: dashboard.php");
+            exit;
+        } else {
+            $error = "Incorrect dashboard password.";
+        }
     }
+    ?>
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Dashboard Login</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                background: #f3f4f7;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                height:100vh;
+                margin:0;
+            }
+            .card {
+                background:#fff;
+                padding:20px 24px;
+                border-radius:6px;
+                box-shadow:0 2px 6px rgba(0,0,0,0.12);
+                width:320px;
+            }
+            h2 { margin-top:0; font-size:18px; }
+            label { font-size:13px; display:block; margin-bottom:6px; }
+            input[type="password"] {
+                width:100%;
+                padding:8px;
+                border:1px solid #ccc;
+                border-radius:4px;
+                font-size:13px;
+            }
+            button {
+                margin-top:12px;
+                width:100%;
+                padding:8px;
+                background:#1976d2;
+                color:#fff;
+                border:none;
+                border-radius:4px;
+                font-size:13px;
+                font-weight:bold;
+                cursor:pointer;
+            }
+            button:hover { background:#145ea7; }
+            .error {
+                color:#c62828;
+                margin-bottom:8px;
+                font-size:13px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h2>Admin Access</h2>
+            <?php if (!empty($error)): ?>
+                <div class="error"><?= htmlspecialchars($error) ?></div>
+            <?php endif; ?>
+            <form method="POST">
+                <label>Dashboard Password</label>
+                <input type="password" name="password" required>
+                <button type="submit">Enter</button>
+            </form>
+        </div>
+    </body>
+    </html>
+    <?php
+    exit;
 }
 
-// If not authenticated → show login form ONLY
-if (empty($_SESSION['admin_ok'])):
-?>
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Dashboard Login</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background:#f3f4f7;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            height:100vh;
-            margin:0;
-        }
-        .card {
-            background:#fff;
-            padding:20px 24px;
-            border-radius:8px;
-            box-shadow:0 8px 24px rgba(0,0,0,0.12);
-            width:100%;
-            max-width:320px;
-            border:1px solid #e0e0e0;
-        }
-        h2 {
-            margin:0 0 10px;
-            font-size:18px;
-        }
-        .subtitle {
-            font-size:12px;
-            color:#666;
-            margin-bottom:14px;
-        }
-        .error {
-            color:#c62828;
-            font-size:13px;
-            margin-bottom:10px;
-        }
-        label {
-            font-size:13px;
-            display:block;
-            margin-bottom:4px;
-        }
-        input[type=password] {
-            width:100%;
-            padding:8px;
-            font-size:14px;
-            border-radius:4px;
-            border:1px solid #ccc;
-            margin-bottom:10px;
-        }
-        button {
-            width:100%;
-            padding:9px;
-            background:#1473e6;
-            color:#fff;
-            border:none;
-            border-radius:4px;
-            cursor:pointer;
-            font-size:14px;
-            font-weight:600;
-        }
-        button:hover { background:#0f5cc0; }
-    </style>
-</head>
-<body>
-<div class="card">
-    <h2>Login Attempt Dashboard</h2>
-    <div class="subtitle">Admin access required</div>
-
-    <?php if ($login_error): ?>
-        <div class="error"><?= htmlspecialchars($login_error) ?></div>
-    <?php endif; ?>
-
-    <form method="POST">
-        <label for="admin_pass">Dashboard password</label>
-        <input type="password" id="admin_pass" name="admin_pass" required>
-        <button type="submit">Access dashboard</button>
-    </form>
-</div>
-</body>
-</html>
-<?php
-exit;
-endif;
-
-/* ===========================
-   AUTHENTICATED VIEW BELOW
-   =========================== */
-
-$dataFile = '/data/attempts.json';
-
+// ---------- LOAD DATA ----------
 if (file_exists($dataFile)) {
-    $raw = file_get_contents($dataFile);
+    $raw     = file_get_contents($dataFile);
     $decoded = json_decode($raw, true);
-    $data = is_array($decoded) ? $decoded : [];
+    $data    = is_array($decoded) ? $decoded : [];
 } else {
     $data = [];
 }
 
-/* -------------------------------------------
-   Normalise + add timestamps if missing
---------------------------------------------*/
+// Normalise timestamp
 foreach ($data as $email => $row) {
     if (!isset($data[$email]['time'])) {
         $data[$email]['time'] = date('Y-m-d H:i:s');
     }
 }
 
-/* -------------------------------------------
-   Sort by most recent activity
---------------------------------------------*/
+// Sort: most recent first
 uasort($data, function($a, $b) {
     return strtotime($b['time']) <=> strtotime($a['time']);
 });
 
-/* -------------------------------------------
-   Stats
---------------------------------------------*/
+// Stats
 $totalEmails    = count($data);
 $totalAttempts  = 0;
 $ips            = [];
@@ -186,25 +151,6 @@ body {
 h2 {
     margin-top: 0;
 }
-.header-bar {
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    margin-bottom:12px;
-}
-.logout-btn {
-    border:none;
-    background:#e53935;
-    color:#fff;
-    padding:6px 10px;
-    border-radius:4px;
-    cursor:pointer;
-    font-size:12px;
-    font-weight:600;
-}
-.logout-btn:hover {
-    background:#c62828;
-}
 .metrics {
     display: flex;
     flex-wrap: wrap;
@@ -235,22 +181,30 @@ h2 {
     color: #999;
     margin-top: 2px;
 }
-
 .actions {
     margin: 10px 0 16px;
 }
-.clear-btn {
+.clear-btn, .logout-btn {
     display: inline-block;
     padding: 8px 14px;
-    background: #c62828;
     color: #fff;
     text-decoration: none;
     border-radius: 4px;
     font-weight: bold;
     font-size: 13px;
+    margin-right: 8px;
+}
+.clear-btn {
+    background: #c62828;
 }
 .clear-btn:hover {
     background: #a72222;
+}
+.logout-btn {
+    background: #555;
+}
+.logout-btn:hover {
+    background: #333;
 }
 
 table {
@@ -281,12 +235,7 @@ td.small {
 </head>
 <body>
 
-<div class="header-bar">
-    <h2>Login Attempt Dashboard</h2>
-    <form method="GET" action="">
-        <button type="submit" name="logout" value="1" class="logout-btn">Log out</button>
-    </form>
-</div>
+<h2>Login Attempt Dashboard</h2>
 
 <div class="metrics">
     <div class="metric-card">
@@ -320,6 +269,7 @@ td.small {
        onclick="return confirm('Are you sure you want to CLEAR all log records?');">
         Clear Logs
     </a>
+    <a href="dashboard.php?logout=1" class="logout-btn">Logout</a>
 </div>
 
 <table>
