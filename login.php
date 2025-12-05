@@ -1,5 +1,16 @@
+
 <?php
+// 🔐 secure, cross-site session cookie (needed because Zoho ≠ Railway)
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path'     => '/',
+    'secure'   => true,      // Railway uses HTTPS
+    'httponly' => true,
+    'samesite' => 'None',    // REQUIRED for cross-site (Zoho → Railway)
+]);
+
 session_start();
+
 
 // -------------------- CONFIG --------------------
 define('ATTEMPTS_FILE', '/data/attempts.json');   // Railway volume
