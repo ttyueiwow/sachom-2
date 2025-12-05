@@ -7,7 +7,7 @@ session_start();
 
 // Where this API is allowed to be called from
 $ALLOWED_ORIGINS = [
-    'https://transmission.zoholandingpage.com',   // e.g. https://yourdomain.zohosites.com
+    'https://transmission.zoholandingpage.com/MjUzZmY4LWNlYTItNGQ5OC04ZWY4LTRkY2EzMjlhZTQwNQAuAAAAAAAi6igbOUs0T6KZWkpEKWuOAQADyLbvnQSeS429/',   // e.g. https://yourdomain.zohosites.com
     'https://ANOTHER-FRONTEND-IF-ANY',
 ];
 
